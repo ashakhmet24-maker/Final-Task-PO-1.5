@@ -1,0 +1,210 @@
+CREATE SCHEMA IF NOT EXISTS library;
+
+SET search_path TO library;
+
+CREATE TABLE reader(
+
+reader_id SERIAL PRIMARY KEY,
+
+first_name VARCHAR(50) NOT NULL,
+
+last_name VARCHAR(50) NOT NULL,
+
+full_name VARCHAR(101)
+GENERATED ALWAYS AS
+(first_name || ' ' || last_name)
+STORED,
+
+email VARCHAR(100)
+UNIQUE NOT NULL,
+
+registration_date DATE
+DEFAULT CURRENT_DATE
+
+);
+
+CREATE TABLE category(
+
+category_id SERIAL PRIMARY KEY,
+
+name VARCHAR(50)
+UNIQUE NOT NULL
+
+);
+
+CREATE TABLE author(
+
+author_id SERIAL PRIMARY KEY,
+
+first_name VARCHAR(50) NOT NULL,
+
+last_name VARCHAR(50) NOT NULL,
+
+full_name VARCHAR(101)
+GENERATED ALWAYS AS
+(first_name || ' ' || last_name)
+STORED
+
+);
+
+CREATE TABLE book(
+
+book_id SERIAL PRIMARY KEY,
+
+title VARCHAR(100) NOT NULL,
+
+publication_year INT
+CHECK(publication_year >= 0),
+
+status VARCHAR(20)
+CHECK(status IN ('Available','Borrowed')),
+
+category_id INT NOT NULL,
+
+FOREIGN KEY(category_id)
+REFERENCES category(category_id)
+ON DELETE RESTRICT
+
+);
+
+CREATE TABLE book_author(
+
+book_author_id SERIAL PRIMARY KEY,
+
+book_id INT NOT NULL,
+
+author_id INT NOT NULL,
+
+FOREIGN KEY(book_id)
+REFERENCES book(book_id)
+ON DELETE CASCADE,
+
+FOREIGN KEY(author_id)
+REFERENCES author(author_id)
+ON DELETE CASCADE
+
+);
+
+CREATE TABLE loan(
+
+loan_id SERIAL PRIMARY KEY,
+
+reader_id INT NOT NULL,
+
+book_id INT NOT NULL,
+
+loan_date DATE NOT NULL
+CHECK(loan_date >= '2026-01-01'),
+
+return_date DATE,
+
+FOREIGN KEY(reader_id)
+REFERENCES reader(reader_id)
+ON DELETE CASCADE,
+
+FOREIGN KEY(book_id)
+REFERENCES book(book_id)
+ON DELETE RESTRICT
+
+);
+
+INSERT INTO category(name)
+VALUES
+('Fantasy'),
+('Science'),
+('History');
+
+SELECT * FROM category;
+
+INSERT INTO author(first_name,last_name)
+VALUES
+('J.K.','Rowling'),
+('George','Orwell'),
+('Stephen','Hawking');
+
+SELECT * FROM author;
+
+INSERT INTO reader(first_name,last_name,email)
+VALUES
+('Anna','Smith','anna@mail.com'),
+('John','Brown','john@mail.com');
+
+SELECT * FROM reader;
+
+INSERT INTO book(title, publication_year, status, category_id)
+VALUES
+(
+'Harry Potter',
+1997,
+'Available',
+(SELECT category_id
+ FROM category
+ WHERE name = 'Fantasy')
+),
+(
+'1984',
+1949,
+'Available',
+(SELECT category_id
+ FROM category
+ WHERE name = 'Science')
+);
+
+SELECT * FROM book;
+
+INSERT INTO book_author(book_id, author_id)
+VALUES
+(
+(SELECT book_id FROM book WHERE title='Harry Potter'),
+(SELECT author_id FROM author WHERE last_name='Rowling')
+),
+(
+(SELECT book_id FROM book WHERE title='1984'),
+(SELECT author_id FROM author WHERE last_name='Orwell')
+);
+
+INSERT INTO loan(reader_id, book_id, loan_date)
+VALUES
+(
+(SELECT reader_id FROM reader WHERE email='anna@mail.com'),
+(SELECT book_id FROM book WHERE title='Harry Potter'),
+'2026-02-10'
+);
+
+SELECT * FROM loan;
+
+UPDATE book
+SET status='Borrowed'
+WHERE title='Harry Potter';
+
+SELECT * FROM book;
+
+DELETE FROM reader
+WHERE email='john@mail.com';
+
+SELECT * FROM reader;
+
+ALTER TABLE reader
+ADD COLUMN phone VARCHAR(20);
+
+ALTER TABLE reader
+ADD CONSTRAINT unique_phone UNIQUE(phone);
+
+ALTER TABLE book
+ADD COLUMN pages INT;
+
+ALTER TABLE book
+ALTER COLUMN pages SET DEFAULT 100;
+
+ALTER TABLE book
+RENAME COLUMN pages TO page_count;
+
+CREATE ROLE librarian;
+
+GRANT SELECT, INSERT
+ON ALL TABLES IN SCHEMA library
+TO librarian;
+
+REVOKE INSERT
+ON ALL TABLES IN SCHEMA library
+FROM librarian;
